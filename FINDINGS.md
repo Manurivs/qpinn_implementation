@@ -97,3 +97,57 @@ originally assumed; PennyLane's `default.qubit` is not the bottleneck it was
 taken to be. The in-house backend is retained because the margin is still real,
 because the symbolic gate list is what surfaced Defect 1, and because the
 planned noise study needs density-matrix evolution spliced between gates.
+
+## Replication result (Helmholtz, 10 seeds)
+
+| Config | Params | Median | Collapsed | Paper v6 |
+| --- | --- | --- | --- | --- |
+| angle-cascade | 771 | **6.62** | 0/10 | 6.69 ± 1.51 |
+| model-2 (lr 2e-3) | 2751 | 7.22 | 2/10 | 12.12 ± 7.17 |
+| model-1 (lr 1e-3) | 7851 | 11.60 | 1/10 | — |
+
+The headline replicates: angle-cascade gives 6.72 ± 1.82 against the paper's
+6.69 ± 1.51, from an independent implementation and simulator.
+
+### Means are not a safe summary here
+
+Both model families collapse to the trivial solution `u ≡ 0` on some seeds,
+which this problem admits because the exact solution vanishes on the entire
+boundary. One collapsed run moves a ten-seed mean further than the whole spread
+of the healthy runs — model-2 at lr 1e-3 has median 7.96 and mean 31.75.
+
+This is not an artefact of undertuning. A ten-seed study over {1e-3, 2e-3,
+5e-3} shows the failure at every rate, minimised at the rates selected above:
+
+| Variant | 1e-3 | 2e-3 | 5e-3 |
+| --- | --- | --- | --- |
+| model-1 | median 11.60, 1/10 failed | 25.92, 4/10 | 61.89, 5/10 |
+| model-2 | median 7.96, 2/10 failed | 7.22, 2/10 | 54.71, 5/10 |
+
+### The paper's margin over model-2 does not survive
+
+v6 claims roughly 45% lower error than model-2 (6.69 against 12.12). With
+medians, 6.62 against 7.22 is a statistical tie: Mann-Whitney p = 0.623 over
+all runs and p = 0.829 over healthy runs only. A model-2 mean of 12.12 ± 7.17
+is what a heavy-tailed sample looks like when one or two runs degrade and the
+mean absorbs them — the same shape our own mean shows. The likely explanation
+for the reported margin is the choice of mean over median, not a difference in
+model quality.
+
+Against model-1 the advantage is real and large: median 6.62 against 11.60,
+p < 0.001, at 10.2x fewer parameters.
+
+### Not supported: a robustness advantage
+
+The 0/10 collapse rate for angle-cascade against 2/10 for model-2 is suggestive
+but **not significant** (Fisher exact p = 0.474; against model-1, p = 1.000).
+With ten seeds, observing zero failures is consistent with a true failure rate
+as high as 30.8%. The tighter spread of the healthy runs is likewise not
+significant (Levene p = 0.178). Establishing this would need far more seeds
+than the benchmark's cost allows, and it is not claimed.
+
+### Summary
+
+At 771 parameters the hybrid model matches a 2751-parameter classical PINN and
+beats a 7851-parameter one. The parameter-efficiency claim holds. The accuracy
+margin over the stronger baseline does not.
