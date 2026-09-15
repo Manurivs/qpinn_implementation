@@ -56,10 +56,12 @@ def train(model, epochs=20000, batch_size=64, lr=5e-3, bc_weight=10.0,
     for it in range(epochs + 1):
         opt.zero_grad()
 
+        xs, us = zip(*(helmholtz.sample_edge(e, batch_size, generator=generator)
+                       for e in helmholtz.EDGES))
+        preds = model(torch.cat(xs, 0)).split(batch_size)
         loss_bc = 0.0
-        for edge in helmholtz.EDGES:
-            xb, ub = helmholtz.sample_edge(edge, batch_size, generator=generator)
-            loss_bc = loss_bc + loss_fn(model(xb), ub)
+        for pred, ub in zip(preds, us):
+            loss_bc = loss_bc + loss_fn(pred, ub)
 
         xr, fr = helmholtz.sample_interior(batch_size, generator=generator)
         _, r_pred = helmholtz.residual(model, xr[:, 0:1], xr[:, 1:2])

@@ -175,3 +175,27 @@ def test_compiled_plan_second_derivative(ansatz, encoding):
     with torch.no_grad():
         fd = (f(x + shift) - 2 * f(x) + f(x - shift)) / eps ** 2
     assert torch.allclose(second.sum(), fd, atol=1e-4)
+
+
+def test_batched_boundary_loss_equals_per_edge_loss():
+    '''Sharing one forward pass across the four edges changes no arithmetic.
+
+    The boundary term is four separate per-edge MSEs. Evaluating them from one
+    concatenated forward pass is the same computation, and is much cheaper
+    because the simulator is dispatch bound rather than FLOP bound.
+    '''
+    from src.models.qcpinn import QCPINN
+    from src.pdes import helmholtz
+
+    torch.manual_seed(0)
+    model = QCPINN(2, 1, ansatz='cascade')
+    loss_fn = torch.nn.MSELoss()
+    gen = torch.Generator().manual_seed(3)
+    xs, us = zip(*(helmholtz.sample_edge(e, 64, generator=gen)
+                   for e in helmholtz.EDGES))
+
+    separate = sum(loss_fn(model(x), u) for x, u in zip(xs, us))
+    preds = model(torch.cat(xs, 0)).split(64)
+    batched = sum(loss_fn(p, u) for p, u in zip(preds, us))
+
+    assert torch.allclose(separate, batched, atol=1e-6)
