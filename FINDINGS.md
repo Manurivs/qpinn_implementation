@@ -151,3 +151,26 @@ than the benchmark's cost allows, and it is not claimed.
 At 771 parameters the hybrid model matches a 2751-parameter classical PINN and
 beats a 7851-parameter one. The parameter-efficiency claim holds. The accuracy
 margin over the stronger baseline does not.
+
+## Improvement 1: untying the cascade parameters does nothing
+
+The reference cascade circuit aliases its five CRX entangler angles onto its
+five RX rotation angles and never applies the remaining five parameters of each
+layer. Repairing this gives the entanglers their own angles and puts the unused
+block to work, at an unchanged total of 771 parameters.
+
+| Variant | Params | Median | Mean ± std | Collapsed |
+| --- | --- | --- | --- | --- |
+| baseline (aliased) | 771 | 6.62 | 6.72 ± 1.82 | 0/10 |
+| untied | 771 | 6.95 | 6.95 ± 1.96 | 0/10 |
+
+Mann-Whitney p = 1.000, variance p = 0.935, ten seeds each. The repair changes
+nothing.
+
+The defect is real — five of fifteen parameters per layer provably cannot reach
+the circuit — but it costs no accuracy, so the paper's reported 771 does not
+overstate what the model can do. At one layer this ansatz is not limited by its
+parameter count, which points at the encoding rather than the variational block
+as the binding constraint, and makes data re-uploading the more promising
+lever. Both defects therefore stand as implementation findings, not as
+explanations of the reported numbers.
