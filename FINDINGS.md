@@ -174,3 +174,35 @@ parameter count, which points at the encoding rather than the variational block
 as the binding constraint, and makes data re-uploading the more promising
 lever. Both defects therefore stand as implementation findings, not as
 explanations of the reported numbers.
+
+## Improvement 2: re-uploading is worse than plain depth
+
+Three variants at two layers, screened at five seeds against the ten-seed
+baseline (median 6.62 at 771 parameters). `depth` and `reupload` carry the same
+786 parameters, so their difference isolates re-uploading from capacity.
+
+| Variant | Params | n | Median | Std | vs baseline |
+| --- | --- | --- | --- | --- | --- |
+| depth (L=2) | 786 | 5 | **5.42** | 1.05 | p = 0.310 |
+| reupload | 786 | 5 | 8.19 | 3.30 | p = 0.513 |
+| reupload + input scale | 796 | 3 | 6.57 | 2.80 | p = 0.811 |
+
+The controlled comparison is significant in the wrong direction: re-uploading
+is **worse** than plain depth at identical parameter count, median 8.19 against
+5.42, Mann-Whitney p = 0.032. It also triples the spread and produces the
+ablation's only outlier at 14.2%.
+
+The standard argument for re-uploading is that one angle embedding makes the
+circuit a degree-one trigonometric polynomial in its inputs, so re-injecting
+inputs widens the frequency spectrum. That argument assumes the circuit is fed
+raw coordinates. In QCPINN it is not: the quantum layer consumes the output of
+a two-layer tanh preprocessor, which is already free to construct whatever
+features the circuit needs. Re-uploading then re-injects a learned feature
+rather than a coordinate, adding gates and optimisation difficulty without
+adding representational reach. The expressivity argument does not transfer to
+hybrid architectures whose classical front end already carries the nonlinearity.
+
+Plain added depth is the only variant that improves the median, and at five
+seeds it is not yet significant against the baseline (p = 0.310). Its spread is
+the tightest measured so far, 1.05 against the baseline's 1.82. Confirmation at
+ten seeds is running.
