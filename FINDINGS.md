@@ -206,3 +206,40 @@ Plain added depth is the only variant that improves the median, and at five
 seeds it is not yet significant against the baseline (p = 0.310). Its spread is
 the tightest measured so far, 1.05 against the baseline's 1.82. Confirmation at
 ten seeds is running.
+
+## Improvement verdict: nothing beats the baseline significantly
+
+Ten seeds per arm, medians and rank tests throughout.
+
+| Variant | Params | n | Median | Std | vs baseline |
+| --- | --- | --- | --- | --- | --- |
+| baseline (L=1) | 771 | 10 | 6.62 | 1.82 | — |
+| untied cascade | 771 | 10 | 6.95 | 1.96 | p = 1.000 |
+| **depth (L=2)** | 786 | 10 | **5.53** | 1.50 | **p = 0.345** |
+| re-uploading | 786 | 5 | 8.19 | 3.30 | p = 0.513 |
+| re-uploading + scale | 796 | 5 | 5.52 | 2.49 | p = 0.768 |
+
+Added depth improves the median by 16.5%, from 6.62 to 5.53, and every depth
+seed but one falls below the baseline median. The distributions still overlap
+too much to call: Mann-Whitney p = 0.345, and the tighter spread seen at five
+seeds does not survive either (Levene p = 0.534). A bootstrap puts the 95%
+interval on the median difference at [-3.18, +0.85] percentage points, with 88%
+of resamples favouring depth — suggestive, not decisive.
+
+The observed effect size is Cohen d = 0.51, which needs **61 seeds per arm** for
+80% power, about 67 core-hours for the pair. That is six times what the whole
+improvement phase has cost so far, and it is the honest price of converting
+this from a suggestion into a result.
+
+Against the tuned classical baselines the two-layer model gives median 5.53
+against model-2's 7.22 (p = 0.273, still not significant) and model-1's 11.60
+(p = 0.0002), at 786 parameters against 2751 and 7851.
+
+### Reading
+
+Three of the four mechanisms tried change nothing or hurt. The one that helps
+is a capacity increase rather than an architectural insight, and it does not
+reach significance. The reasonable conclusion is that QCPINN as published is
+already close to what this architecture achieves on Helmholtz, and that the
+contribution of this work is the replication and the correction to how the
+comparison is reported, not an improved model.
