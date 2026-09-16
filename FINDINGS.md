@@ -254,7 +254,7 @@ comparison is reported, not an improved model.
 | angle-alternate | 772 | 9.60 | 10.20 | 0/10 | 9.15 |
 | model-1 (lr 1e-3) | 7851 | 11.60 | — | 1/10 | 31.80 |
 | amplitude-layered | 776 | 15.24 | 10.71 | 0/10 | 40.50 |
-| amplitude-cross_mesh | 796 | 17.84 | 19.72 | 0/9 | 17.70 |
+| amplitude-cross_mesh | 796 | 17.94 | 21.75 | 0/10 | 17.70 |
 | amplitude-alternate | 772 | 18.07 | 8.33 | 0/10 | 21.40 |
 | amplitude-cascade | 771 | 18.82 | 11.32 | 0/10 | 19.90 |
 | angle-layered | 776 | 23.45 | 11.61 | 0/10 | 23.50 |
@@ -270,7 +270,7 @@ Pooled across ansaetze, angle encoding gives median 8.15 against amplitude's
 | Ansatz | Angle | Amplitude | Ratio |
 | --- | --- | --- | --- |
 | cascade | 6.62 | 18.82 | 2.84x |
-| cross_mesh | 6.47 | 17.84 | 2.76x |
+| cross_mesh | 6.47 | 17.94 | 2.77x |
 | alternate | 9.60 | 18.07 | 1.88x |
 | layered | 23.45 | 15.24 | **0.65x** |
 
