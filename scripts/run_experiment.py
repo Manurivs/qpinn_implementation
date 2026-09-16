@@ -24,6 +24,7 @@ def build_model(args):
             2, 1, hidden_dim=args.hidden_dim, n_qubits=args.n_qubits,
             n_layers=args.n_layers, ansatz=args.ansatz, encoding=args.encoding,
             backend=args.backend, fix_cascade=args.fix_cascade,
+            reupload=args.reupload, input_scale=args.input_scale,
         )
     return ClassicalPINN(2, 1, hidden_dim=args.hidden_dim, variant=args.variant,
                          width=args.width)
@@ -38,6 +39,8 @@ def main():
     p.add_argument('--width', type=int, default=None)
     p.add_argument('--backend', default='torch')
     p.add_argument('--fix-cascade', action='store_true')
+    p.add_argument('--reupload', action='store_true')
+    p.add_argument('--input-scale', action='store_true')
     p.add_argument('--n-qubits', type=int, default=5)
     p.add_argument('--n-layers', type=int, default=1)
     p.add_argument('--hidden-dim', type=int, default=50)
@@ -69,6 +72,9 @@ def main():
         'encoding': args.encoding if args.model == 'qcpinn' else None,
         'variant': args.variant if args.model == 'classical' else None,
         'fix_cascade': args.fix_cascade,
+        'reupload': args.reupload,
+        'input_scale': args.input_scale,
+        'n_layers': args.n_layers,
         'seed': args.seed,
         'epochs': args.epochs,
         'lr': args.lr,

@@ -163,7 +163,8 @@ def _cross_mesh(n, base):
     return gates
 
 
-def build_circuit(ansatz, n_qubits, n_layers, encoding='angle', fix_cascade=False):
+def build_circuit(ansatz, n_qubits, n_layers, encoding='angle', fix_cascade=False,
+                  reupload=False):
     '''Build the full gate list for a QCPINN quantum layer.
 
     Parameters
@@ -180,13 +181,25 @@ def build_circuit(ansatz, n_qubits, n_layers, encoding='angle', fix_cascade=Fals
     fix_cascade : bool, optional
         If True, repair the reference implementation's cascade parameter
         aliasing. Ignored for other ansaetze.
+    reupload : bool, optional
+        If True, re-apply the angle embedding before every variational block
+        instead of only at the start. Requires 'angle' encoding.
 
     Returns
     -------
     gates : list of Gate
-        Embedding gates followed by `n_layers` variational blocks.
+        Embedding gates interleaved with `n_layers` variational blocks.
     n_params : int
         Total trainable parameter count.
+
+    Notes
+    -----
+    A single angle embedding makes the circuit output a degree-one trigonometric
+    polynomial in each input. Re-uploading the input between variational blocks
+    widens the representable frequency spectrum, which is what a solution
+    containing a ``sin(4 pi y)`` mode needs. With re-uploading the feature index
+    of the embedding gate in layer `l` on wire `q` is ``l * n_qubits + q``, so
+    the caller can supply a separately scaled copy of the input per layer.
 
     Examples
     --------
@@ -198,10 +211,8 @@ def build_circuit(ansatz, n_qubits, n_layers, encoding='angle', fix_cascade=Fals
         raise ValueError(f'unknown ansatz: {ansatz}')
     if encoding not in ENCODINGS:
         raise ValueError(f'unknown encoding: {encoding}')
-
-    gates = []
-    if encoding == 'angle':
-        gates += [Gate('RX', (q,), 'x', q) for q in range(n_qubits)]
+    if reupload and encoding != 'angle':
+        raise ValueError('re-uploading requires angle encoding')
 
     ppl = n_params_per_layer(ansatz, n_qubits)
     builders = {
@@ -210,7 +221,12 @@ def build_circuit(ansatz, n_qubits, n_layers, encoding='angle', fix_cascade=Fals
         'layered': lambda b: _layered(n_qubits, b),
         'cross_mesh': lambda b: _cross_mesh(n_qubits, b),
     }
+
+    gates = []
     for layer in range(n_layers):
+        if encoding == 'angle' and (layer == 0 or reupload):
+            base = layer * n_qubits if reupload else 0
+            gates += [Gate('RX', (q,), 'x', base + q) for q in range(n_qubits)]
         gates += builders[ansatz](layer * ppl)
 
     return gates, ppl * n_layers

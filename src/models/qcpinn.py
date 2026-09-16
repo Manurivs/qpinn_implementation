@@ -29,20 +29,33 @@ class QuantumLayer(nn.Module):
         'torch' for the built-in simulator, 'pennylane' for the reference.
     fix_cascade : bool, optional
         Repair the reference cascade parameter aliasing.
+    reupload : bool, optional
+        Re-apply the angle embedding before every variational block.
+    input_scale : bool, optional
+        Learn a multiplicative scale on each encoding angle. With `reupload`
+        the scale is per layer and per wire, letting each block select its own
+        frequency; otherwise it is one scale per wire.
     '''
 
     def __init__(self, ansatz, n_qubits, n_layers, encoding='angle',
-                 backend='torch', fix_cascade=False):
+                 backend='torch', fix_cascade=False, reupload=False,
+                 input_scale=False):
         super().__init__()
         self.ansatz = ansatz
         self.n_qubits = n_qubits
         self.n_layers = n_layers
         self.encoding = encoding
         self.backend = backend
+        self.reupload = reupload
 
         self.gates, n_params = build_circuit(
-            ansatz, n_qubits, n_layers, encoding, fix_cascade
+            ansatz, n_qubits, n_layers, encoding, fix_cascade, reupload
         )
+
+        self.input_scale = None
+        if input_scale:
+            shape = (n_layers, n_qubits) if reupload else (n_qubits,)
+            self.input_scale = nn.Parameter(torch.ones(shape))
         self.plan = compile_circuit(self.gates, n_qubits)
         self.ppl = n_params_per_layer(ansatz, n_qubits)
         self.params = nn.Parameter(torch.empty(n_layers, self.ppl))
@@ -51,6 +64,30 @@ class QuantumLayer(nn.Module):
         if backend == 'pennylane':
             from src.quantum.pennylane_ref import make_qnode
             self._qnode = make_qnode(ansatz, n_qubits, n_layers, encoding)
+
+    def encode(self, x):
+        '''Expand and scale input features for the embedding gates.
+
+        Parameters
+        ----------
+        x : torch.Tensor
+            Shape ``(batch, n_qubits)``.
+
+        Returns
+        -------
+        torch.Tensor
+            Shape ``(batch, n_qubits)``, or ``(batch, n_layers * n_qubits)``
+            when re-uploading, matching the feature indices the circuit
+            description expects.
+        '''
+        if not self.reupload:
+            return x if self.input_scale is None else x * self.input_scale
+        xs = x.unsqueeze(1)
+        if self.input_scale is not None:
+            xs = xs * self.input_scale.unsqueeze(0)
+        else:
+            xs = xs.expand(-1, self.n_layers, -1)
+        return xs.reshape(x.shape[0], -1)
 
     def forward(self, x):
         '''Run the circuit on a batch of features.
@@ -68,7 +105,8 @@ class QuantumLayer(nn.Module):
         if self.backend == 'pennylane':
             return self._qnode(x, self.params).to(x.dtype)
         return torch_sim.run_plan(
-            self.plan, x, self.params.reshape(-1), self.n_qubits, self.encoding
+            self.plan, self.encode(x), self.params.reshape(-1),
+            self.n_qubits, self.encoding
         )
 
 
@@ -85,20 +123,21 @@ class QCPINN(nn.Module):
         Quantum layer size.
     ansatz, encoding, backend : str, optional
         Passed to :class:`QuantumLayer`.
-    fix_cascade : bool, optional
+    fix_cascade, reupload, input_scale : bool, optional
         Passed to :class:`QuantumLayer`.
     '''
 
     def __init__(self, in_dim, out_dim, hidden_dim=50, n_qubits=5, n_layers=1,
                  ansatz='cascade', encoding='angle', backend='torch',
-                 fix_cascade=False):
+                 fix_cascade=False, reupload=False, input_scale=False):
         super().__init__()
         self.preprocessor = nn.Sequential(
             nn.Linear(in_dim, hidden_dim), nn.Tanh(),
             nn.Linear(hidden_dim, n_qubits),
         )
         self.quantum_layer = QuantumLayer(
-            ansatz, n_qubits, n_layers, encoding, backend, fix_cascade
+            ansatz, n_qubits, n_layers, encoding, backend, fix_cascade,
+            reupload, input_scale
         )
         self.postprocessor = nn.Sequential(
             nn.Linear(n_qubits, hidden_dim), nn.Tanh(),

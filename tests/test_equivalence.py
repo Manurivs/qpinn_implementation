@@ -199,3 +199,51 @@ def test_batched_boundary_loss_equals_per_edge_loss():
     batched = sum(loss_fn(p, u) for p, u in zip(preds, us))
 
     assert torch.allclose(separate, batched, atol=1e-6)
+
+
+@pytest.mark.parametrize('reupload,input_scale', [(True, False), (True, True),
+                                                  (False, True)])
+def test_improvements_preserve_second_derivative(reupload, input_scale):
+    '''Re-uploading and learnable input scaling keep the PINN residual usable.
+
+    Both change how inputs reach the encoding gates, so the second derivative
+    with respect to the model input has to survive the extra graph.
+    '''
+    from src.models.qcpinn import QCPINN
+
+    torch.manual_seed(0)
+    model = QCPINN(2, 1, n_layers=2, fix_cascade=True,
+                   reupload=reupload, input_scale=input_scale)
+    x1 = torch.rand(6, 1, requires_grad=True)
+    x2 = torch.rand(6, 1, requires_grad=True)
+    u = model(torch.cat((x1, x2), 1))
+    u_x = torch.autograd.grad(u, x1, torch.ones_like(u), create_graph=True)[0]
+    u_xx = torch.autograd.grad(u_x, x1, torch.ones_like(u_x), create_graph=True)[0]
+    assert torch.isfinite(u_xx).all()
+    u_xx.sum().backward()
+    assert all(p.grad is not None and torch.isfinite(p.grad).all()
+               for p in model.parameters() if p.requires_grad)
+
+
+def test_input_scale_initialises_to_identity():
+    '''Learnable scaling starts at 1.0, so it begins as the unscaled circuit.'''
+    from src.models.qcpinn import QCPINN
+
+    torch.manual_seed(0)
+    a = QCPINN(2, 1, n_layers=2, fix_cascade=True, reupload=True)
+    torch.manual_seed(0)
+    b = QCPINN(2, 1, n_layers=2, fix_cascade=True, reupload=True,
+               input_scale=True)
+    x = torch.rand(8, 2)
+    assert torch.allclose(a(x), b(x), atol=1e-6)
+
+
+def test_reupload_changes_the_circuit():
+    '''Re-uploading adds embedding gates without adding parameters.'''
+    from src.quantum.ansatz import build_circuit
+
+    plain, n_plain = build_circuit('cascade', 5, 2)
+    reup, n_reup = build_circuit('cascade', 5, 2, reupload=True)
+    assert n_plain == n_reup
+    assert len(reup) == len(plain) + 5
+    assert {g.index for g in reup if g.source == 'x'} == set(range(10))
