@@ -243,3 +243,55 @@ reach significance. The reasonable conclusion is that QCPINN as published is
 already close to what this architecture achieves on Helmholtz, and that the
 contribution of this work is the replication and the correction to how the
 comparison is reported, not an improved model.
+
+## Full Table 4 replication (Helmholtz, 10 seeds per configuration)
+
+| Configuration | Params | Median | Std | Collapsed | Paper v4 |
+| --- | --- | --- | --- | --- | --- |
+| angle-cross_mesh | 796 | 6.47 | 1.55 | 0/10 | 11.80 |
+| angle-cascade | 771 | 6.62 | 1.82 | 0/10 | 4.12 |
+| model-2 (lr 2e-3) | 2751 | 7.22 | — | 2/10 | 6.72 |
+| angle-alternate | 772 | 9.60 | 10.20 | 0/10 | 9.15 |
+| model-1 (lr 1e-3) | 7851 | 11.60 | — | 1/10 | 31.80 |
+| amplitude-layered | 776 | 15.24 | 10.71 | 0/10 | 40.50 |
+| amplitude-cross_mesh | 796 | 17.84 | 19.72 | 0/9 | 17.70 |
+| amplitude-alternate | 772 | 18.07 | 8.33 | 0/10 | 21.40 |
+| amplitude-cascade | 771 | 18.82 | 11.32 | 0/10 | 19.90 |
+| angle-layered | 776 | 23.45 | 11.61 | 0/10 | 23.50 |
+
+Spearman rank correlation with the paper's v4 ordering is 0.667 (p = 0.071).
+The qualitative structure replicates from an independent implementation.
+
+### Encoding dominates topology
+
+Pooled across ansaetze, angle encoding gives median 8.15 against amplitude's
+17.57, Mann-Whitney p = 2.9e-04 — the clearest effect in the whole study.
+
+| Ansatz | Angle | Amplitude | Ratio |
+| --- | --- | --- | --- |
+| cascade | 6.62 | 18.82 | 2.84x |
+| cross_mesh | 6.47 | 17.84 | 2.76x |
+| alternate | 9.60 | 18.07 | 1.88x |
+| layered | 23.45 | 15.24 | **0.65x** |
+
+The penalty is consistent with the padding defect: five features embedded into a
+32-dimensional state leave roughly four effective degrees of freedom. `layered`
+inverts the pattern and is also the worst angle configuration by a wide margin.
+No explanation is offered here.
+
+Topology, by contrast, separates the three usable angle configurations weakly:
+cross_mesh, cascade and alternate span 6.47 to 9.60 with Kruskal-Wallis
+p = 0.089, and cross_mesh does not beat cascade (p = 0.678). The paper's
+single-run v4 table reports these as 11.80, 4.12 and 9.15, an ordering its own
+seed variance cannot support.
+
+### Small samples mislead on this benchmark
+
+`angle-cross_mesh` measured 5.63 at six seeds, which looked like a clear
+improvement on cascade, and 6.47 at ten, which is a tie. The same pattern
+appeared three times in this work: the classical learning-rate selection at
+three seeds, the depth variant at five, and this. Seed variance here is large
+enough that fewer than about ten runs routinely produces orderings that do not
+survive. This bears directly on how the paper's single-run v4 table should be
+read, and it is the strongest argument for the v6 revision's move to reporting
+spread.
