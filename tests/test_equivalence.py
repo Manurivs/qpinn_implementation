@@ -221,8 +221,20 @@ def test_improvements_preserve_second_derivative(reupload, input_scale):
     u_xx = torch.autograd.grad(u_x, x1, torch.ones_like(u_x), create_graph=True)[0]
     assert torch.isfinite(u_xx).all()
     u_xx.sum().backward()
-    assert all(p.grad is not None and torch.isfinite(p.grad).all()
-               for p in model.parameters() if p.requires_grad)
+
+    # The output bias adds a constant to u, so a second derivative cannot
+    # depend on it and it correctly receives no gradient. Every other
+    # parameter must get a finite one.
+    output_bias = model.postprocessor[-1].bias
+    for name, param in model.named_parameters():
+        if param is output_bias:
+            continue
+        assert param.grad is not None, f'{name} received no gradient'
+        assert torch.isfinite(param.grad).all(), f'{name} gradient not finite'
+
+    scale = model.quantum_layer.input_scale
+    if scale is not None:
+        assert scale.grad.abs().sum() > 0, 'input scale received no signal'
 
 
 def test_input_scale_initialises_to_identity():
